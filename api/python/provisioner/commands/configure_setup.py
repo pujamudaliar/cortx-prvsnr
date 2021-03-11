@@ -149,20 +149,24 @@ class StorageEnclosureParamsValidation:
 
 @attr.s(auto_attribs=True)
 class NodeParamsValidation:
-    hostname: str = NodeNetworkParams.hostname
-    roles: List = NodeNetworkParams.roles
-    data_public_interfaces: List = NodeNetworkParams.data_public_interfaces
-    data_private_interfaces: List = NodeNetworkParams.data_private_interfaces
-    data_public_ip: str = NodeNetworkParams.data_public_ip
-    data_netmask: str = NodeNetworkParams.data_netmask
-    data_gateway: str = NodeNetworkParams.data_gateway
-    mgmt_interfaces: List = NodeNetworkParams.mgmt_interfaces
-    mgmt_public_ip: str = NodeNetworkParams.mgmt_public_ip
-    mgmt_netmask: str = NodeNetworkParams.mgmt_netmask
-    mgmt_gateway: str = NodeNetworkParams.mgmt_gateway
-    data_private_ip: str = NodeNetworkParams.data_private_ip
     bmc_user: str = NodeNetworkParams.bmc_user
     bmc_secret: str = NodeNetworkParams.bmc_secret
+    data_gateway: str = NodeNetworkParams.data_gateway
+    data_netmask: str = NodeNetworkParams.data_netmask
+    data_private_interfaces: List = NodeNetworkParams.data_private_interfaces
+    data_private_ip: str = NodeNetworkParams.data_private_ip
+    data_public_interfaces: List = NodeNetworkParams.data_public_interfaces
+    data_public_ip: str = NodeNetworkParams.data_public_ip
+    hostname: str = NodeNetworkParams.hostname
+    mgmt_gateway: str = NodeNetworkParams.mgmt_gateway
+    mgmt_interfaces: List = NodeNetworkParams.mgmt_interfaces
+    mgmt_netmask: str = NodeNetworkParams.mgmt_netmask
+    mgmt_public_ip: str = NodeNetworkParams.mgmt_public_ip
+    roles: List = NodeNetworkParams.roles
+    storage_cvg_data_devices = NodeNetworkParams.storage_cvg_data_devices
+    storage_cvg_metadata_devices = (
+        NodeNetworkParams.storage_cvg_metadata_devices
+    )
 
     _optional_param = [
         'data_public_ip',
@@ -173,11 +177,37 @@ class NodeParamsValidation:
         'mgmt_interfaces',
         'mgmt_public_ip',
         'mgmt_netmask',
-        'mgmt_gateway'
+        'mgmt_gateway',
+        'storage_cvg_data_devices',
+        'storage_cvg_metadata_devices'
     ]
 
     def __attrs_post_init__(self):
         params = attr.asdict(self)
+        
+        # If storage.cvg.metadata or storage.cvg.data is specified,
+        # check entry for the other.
+        if params.get('storage_cvg_metadata_devices'):
+            if (
+                (not params.get('storage_cvg_data_devices')) or
+                (params.get('storage_cvg_data_devices') == UNCHANGED) or
+                (params.get('storage_cvg_data_devices') == '')
+            ):
+                raise ValueError(
+                    "List of metadata_devices is specified. "
+                    "However, list of data_devices is unspecified."
+                )
+        elif params.get('storage_cvg_data_devices'):
+            if (
+                (not params.get('storage_cvg_meadata_devices')) or
+                (params.get('storage_cvg_meadata_devices') == UNCHANGED) or
+                (params.get('storage_cvg_meadata_devices') == '')
+            :
+                raise ValueError(
+                    "List of data_devices is specified. "
+                    "However, list of metadata_devices is unspecified."
+                )
+        
         missing_params = []
         for param, value in params.items():
             if value == UNCHANGED and param not in self._optional_param:
@@ -220,22 +250,30 @@ class ConfigureSetup(CommandParserFillerMixin):
 
     def _parse_input(self, input):
         for key in input:
-            if input[key] and "," in input[key]:
+            if input.get(key) and "," in input[key]:
                 value = [f'\"{x.strip()}\"' for x in input[key].split(",")]
                 value = ','.join(value)
                 input[key] = f'[{value}]'
-            elif 'interfaces' in key or 'roles' in key:
+            elif (
+                'interfaces' in key or
+                'roles' in key or
+                "storage.cvg" in key
+            ):
                 # special case single value as array
                 # Need to fix this array having single value
                 input[key] = f'[\"{input[key]}\"]'
             else:
-                if input[key]:
+                if input.get(key):
                     if input[key] == 'None':
                         input[key] = '\"\"'
                     else:
                         input[key] = f'\"{input[key]}\"'
                 else:
                     input[key] = UNCHANGED
+
+        # Special treatment for srvnode_storage
+
+
 
     def _parse_pillar_key(self, key):
         pillar_key = deepcopy(key)

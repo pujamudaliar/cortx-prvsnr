@@ -568,6 +568,12 @@ class NodeNetworkParams():
         _param_group, descr="node BMC  IP", default=UNCHANGED,
         validator=Validation.check_ip4
     )
+    data_devices: List = ParamGroupInputBase._attr_ib(
+        _param_group, descr="node storage data devices"
+    )
+    metadata_devices: List = ParamGroupInputBase._attr_ib(
+        _param_group, descr="node storage metadata devices"
+    )
 
 
 class NetworkParams():
