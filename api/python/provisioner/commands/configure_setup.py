@@ -202,7 +202,7 @@ class NodeParamsValidation:
                 (not params.get('storage_cvg_meadata_devices')) or
                 (params.get('storage_cvg_meadata_devices') == UNCHANGED) or
                 (params.get('storage_cvg_meadata_devices') == '')
-            :
+            ):
                 raise ValueError(
                     "List of data_devices is specified. "
                     "However, list of metadata_devices is unspecified."
