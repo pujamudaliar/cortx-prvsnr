@@ -93,10 +93,12 @@ cluster:
         roaming_ip:                   # Applies to private data network
     storage:
       enclosure_id: enclosure-{{ (node_num + 1) }}
-      metadata_devices:               # Device for /var/motr and possibly SWAP
-        - /dev/sdb                    # Auto-populated by components.system.storage.multipath
-      data_devices:                   # Data device/LUN from storage enclosure
-        - /dev/sdc
+      cvg_count: 1
+      cvg:
+        - data_devices:               # Data device/LUN from storage enclosure
+          - /dev/sdc
+          metadata_devices:           # Device for /var/motr and possibly SWAP
+          - /dev/sdb
     {%- if "physical" in grains["virtual"] %}
     s3_instances: 11
     {%- else %}
