@@ -436,7 +436,12 @@ class Validation():
     def check_ip4(instace, attribute, value):
         try:
             ip = None
-            if value and value != UNCHANGED and value != 'None':  # FIXME JBOD
+            if (
+                value and
+                value != UNCHANGED and
+                value != 'None' and
+                value != '\"\"'
+            ):  # FIXME JBOD
                 ip = ipaddress.IPv4Address(value)
                 # TODO : Improve logic internally convert ip to
                 # canonical forms.
@@ -526,6 +531,22 @@ class NodeParams():
     data_private_interfaces: List = ParamGroupInputBase._attr_ib(
         _param_group, descr="node data private network interfaces"
     )
+    data_private_ip: str = ParamGroupInputBase._attr_ib(
+        _param_group, descr="node data interface private IP",
+        validator=Validation.check_ip4
+    )
+    data_public_ip: str = ParamGroupInputBase._attr_ib(
+        _param_group, descr="node data interface IP", default=UNCHANGED,
+        validator=Validation.check_ip4
+    )
+    data_netmask: str = ParamGroupInputBase._attr_ib(
+        _param_group, descr="node data interface netmask",
+        validator=Validation.check_ip4
+    )
+    data_gateway: str = ParamGroupInputBase._attr_ib(
+        _param_group, descr="node data gateway IP",
+        validator=Validation.check_ip4
+    )
     bmc_user: str = ParamGroupInputBase._attr_ib(
         _param_group, descr="node BMC User"
     )
@@ -547,22 +568,6 @@ class NodeParams():
     )
     mgmt_interfaces: List = ParamGroupInputBase._attr_ib(
         _param_group, descr="node management network interfaces"
-    )
-    data_public_ip: str = ParamGroupInputBase._attr_ib(
-        _param_group, descr="node data interface IP", default=UNCHANGED,
-        validator=Validation.check_ip4
-    )
-    data_netmask: str = ParamGroupInputBase._attr_ib(
-        _param_group, descr="node data interface netmask",
-        validator=Validation.check_ip4
-    )
-    data_gateway: str = ParamGroupInputBase._attr_ib(
-        _param_group, descr="node data gateway IP",
-        validator=Validation.check_ip4
-    )
-    data_private_ip: str = ParamGroupInputBase._attr_ib(
-        _param_group, descr="node data interface private IP",
-        validator=Validation.check_ip4
     )
     bmc_ip: str = ParamGroupInputBase._attr_ib(
         _param_group, descr="node BMC  IP", default=UNCHANGED,
@@ -635,9 +640,6 @@ class NetworkParams():
     secondary_floating_ip: str = ParamGroupInputBase._attr_ib(
         _param_group, descr="secondary node floating IP"
     )
-    secondary_data_gateway: str = ParamGroupInputBase._attr_ib(
-        _param_group, descr="secondary node data gateway IP"
-    )
     secondary_mgmt_gateway: str = ParamGroupInputBase._attr_ib(
         _param_group, descr="secondary node mgmt gateway IP"
     )
@@ -647,6 +649,9 @@ class NetworkParams():
     )
     secondary_mgmt_netmask: str = ParamGroupInputBase._attr_ib(
         _param_group, descr="secondary node management interface netmask"
+    )
+    secondary_data_gateway: str = ParamGroupInputBase._attr_ib(
+        _param_group, descr="secondary node data gateway IP"
     )
     secondary_data_public_ip: str = ParamGroupInputBase._attr_ib(
         _param_group, descr="secondary node node data interface IP",
