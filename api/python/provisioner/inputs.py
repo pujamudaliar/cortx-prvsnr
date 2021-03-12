@@ -512,7 +512,7 @@ class StorageEnclosure(ParamGroupInputBase):
     controller_secret: str = StorageEnclosureParams.controller_secret
 
 
-class NodeNetworkParams():
+class NodeParams():
     _param_group = 'node'
     hostname: str = ParamGroupInputBase._attr_ib(
         _param_group, descr="node hostname"
@@ -568,11 +568,9 @@ class NodeNetworkParams():
         _param_group, descr="node BMC  IP", default=UNCHANGED,
         validator=Validation.check_ip4
     )
-    data_devices: List = ParamGroupInputBase._attr_ib(
-        _param_group, descr="node storage data devices"
-    )
-    metadata_devices: List = ParamGroupInputBase._attr_ib(
-        _param_group, descr="node storage metadata devices"
+    cvg: List = ParamGroupInputBase._attr_ib(
+        _param_group, descr="node storage Cylinder Volume Group (CVG) devices",
+        default=UNCHANGED
     )
 
 

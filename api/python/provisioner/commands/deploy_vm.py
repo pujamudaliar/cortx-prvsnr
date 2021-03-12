@@ -108,31 +108,31 @@ class DeployVM(Deploy):
                 minions_ids.append(f"{target}")
 
         # TODO: EOS-14248 remote setup vm deployment
-        res = self._cmd_run(
-            "lsblk -ndp | grep disk | awk '{ print $1 }'",
-            targets=self._primary_id()
-        )
-        if res[self._primary_id()]:
-            disk = res[self._primary_id()].split("\n")
+        # res = self._cmd_run(
+        #     "lsblk -ndp | grep disk | awk '{ print $1 }'",
+        #     targets=self._primary_id()
+        # )
+        # if res[self._primary_id()]:
+        #     disk = res[self._primary_id()].split("\n")
 
         for minion_id in minions_ids:
-            if len(disk) > 1:
-                self._cmd_run(
-                    (
-                        'provisioner pillar_set '
-                        f' cluster/{minion_id}/storage/metadata_devices '
-                        f'[\\"{disk[-2]}\\"]'
-                    ),
-                    targets=self._primary_id()
-                )
-                self._cmd_run(
-                    (
-                        'provisioner pillar_set '
-                        f' cluster/{minion_id}/storage/data_devices '
-                        f'[\\"{disk[-1]}\\"]'
-                    ),
-                    targets=self._primary_id()
-                )
+            # if len(disk) > 1:
+            #     self._cmd_run(
+            #         (
+            #             'provisioner pillar_set '
+            #             f' cluster/{minion_id}/storage/metadata_devices '
+            #             f'[\\"{disk[-2]}\\"]'
+            #         ),
+            #         targets=self._primary_id()
+            #     )
+            #     self._cmd_run(
+            #         (
+            #             'provisioner pillar_set '
+            #             f' cluster/{minion_id}/storage/data_devices '
+            #             f'[\\"{disk[-1]}\\"]'
+            #         ),
+            #         targets=self._primary_id()
+            #     )
 
             self._cmd_run(
                 (

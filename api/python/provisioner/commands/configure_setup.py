@@ -22,19 +22,22 @@ from typing import Type, List
 from copy import deepcopy
 from pathlib import Path
 
+from . import CommandParserFillerMixin
+
 from ..inputs import (
-    NetworkParams, ReleaseParams, StorageEnclosureParams,
-    NodeNetworkParams
+    METADATA_ARGPARSER,
+    NetworkParams, NodeParams, NoParams,
+    ReleaseParams, StorageEnclosureParams
 )
-from .. import inputs
-from ..vendor import attr
+
+from provisioner.commands import (
+     PillarSet
+)
 
 from ..utils import run_subprocess_cmd
-
 from ..values import UNCHANGED
-from . import (
-    CommandParserFillerMixin
-)
+from ..vendor import attr
+
 
 
 logger = logging.getLogger(__name__)
@@ -52,14 +55,14 @@ class SetupType(Enum):
 class RunArgsConfigureSetupAttrs:
     path: str = attr.ib(
         metadata={
-            inputs.METADATA_ARGPARSER: {
+            METADATA_ARGPARSER: {
                 'help': "config path to update pillar"
             }
         }
     )
     setup_type: str = attr.ib(
         metadata={
-            inputs.METADATA_ARGPARSER: {
+            METADATA_ARGPARSER: {
                 'help': "the type of the setup",
                 'choices': [st.value for st in SetupType]
             }
@@ -70,7 +73,7 @@ class RunArgsConfigureSetupAttrs:
     )
     number_of_nodes: int = attr.ib(
         metadata={
-            inputs.METADATA_ARGPARSER: {
+            METADATA_ARGPARSER: {
                 'help': "No of nodes in cluster"
             }
         },
@@ -149,24 +152,21 @@ class StorageEnclosureParamsValidation:
 
 @attr.s(auto_attribs=True)
 class NodeParamsValidation:
-    bmc_user: str = NodeNetworkParams.bmc_user
-    bmc_secret: str = NodeNetworkParams.bmc_secret
-    data_gateway: str = NodeNetworkParams.data_gateway
-    data_netmask: str = NodeNetworkParams.data_netmask
-    data_private_interfaces: List = NodeNetworkParams.data_private_interfaces
-    data_private_ip: str = NodeNetworkParams.data_private_ip
-    data_public_interfaces: List = NodeNetworkParams.data_public_interfaces
-    data_public_ip: str = NodeNetworkParams.data_public_ip
-    hostname: str = NodeNetworkParams.hostname
-    mgmt_gateway: str = NodeNetworkParams.mgmt_gateway
-    mgmt_interfaces: List = NodeNetworkParams.mgmt_interfaces
-    mgmt_netmask: str = NodeNetworkParams.mgmt_netmask
-    mgmt_public_ip: str = NodeNetworkParams.mgmt_public_ip
-    roles: List = NodeNetworkParams.roles
-    storage_cvg_data_devices = NodeNetworkParams.storage_cvg_data_devices
-    storage_cvg_metadata_devices = (
-        NodeNetworkParams.storage_cvg_metadata_devices
-    )
+    bmc_user: str = NodeParams.bmc_user
+    bmc_secret: str = NodeParams.bmc_secret
+    data_gateway: str = NodeParams.data_gateway
+    data_netmask: str = NodeParams.data_netmask
+    data_private_interfaces: List = NodeParams.data_private_interfaces
+    data_private_ip: str = NodeParams.data_private_ip
+    data_public_interfaces: List = NodeParams.data_public_interfaces
+    data_public_ip: str = NodeParams.data_public_ip
+    hostname: str = NodeParams.hostname
+    mgmt_gateway: str = NodeParams.mgmt_gateway
+    mgmt_interfaces: List = NodeParams.mgmt_interfaces
+    mgmt_netmask: str = NodeParams.mgmt_netmask
+    mgmt_public_ip: str = NodeParams.mgmt_public_ip
+    roles: List = NodeParams.roles
+    cvg: List = NodeParams.cvg
 
     _optional_param = [
         'data_public_ip',
@@ -178,8 +178,7 @@ class NodeParamsValidation:
         'mgmt_public_ip',
         'mgmt_netmask',
         'mgmt_gateway',
-        'storage_cvg_data_devices',
-        'storage_cvg_metadata_devices'
+        'cvg'
     ]
 
     def __attrs_post_init__(self):
@@ -187,27 +186,33 @@ class NodeParamsValidation:
         
         # If storage.cvg.metadata or storage.cvg.data is specified,
         # check entry for the other.
-        if params.get('storage_cvg_metadata_devices'):
-            if (
-                (not params.get('storage_cvg_data_devices')) or
-                (params.get('storage_cvg_data_devices') == UNCHANGED) or
-                (params.get('storage_cvg_data_devices') == '')
-            ):
-                raise ValueError(
-                    "List of metadata_devices is specified. "
-                    "However, list of data_devices is unspecified."
-                )
-        elif params.get('storage_cvg_data_devices'):
-            if (
-                (not params.get('storage_cvg_meadata_devices')) or
-                (params.get('storage_cvg_meadata_devices') == UNCHANGED) or
-                (params.get('storage_cvg_meadata_devices') == '')
-            ):
-                raise ValueError(
-                    "List of data_devices is specified. "
-                    "However, list of metadata_devices is unspecified."
-                )
-        
+        if params.get('cvg'):
+            for data_set in params.get('cvg'):
+                if (
+                    params.get('cvg').get('data_devices') and
+                    (
+                        (not params.get('cvg').get('metadata_devices')) or
+                        (params.get('cvg').get('metadata_devices') == UNCHANGED) or
+                        (params.get('cvg').get('metadata_devices') == '')
+                    )
+                ):
+                    raise ValueError(
+                        "List of data devices is specified. "
+                        "However, list of metadata devices is unspecified."
+                    )
+                elif (
+                    params.get('cvg').get('metadata_devices') and
+                    (
+                        (not params.get('cvg').get('data_devices')) or
+                        (params.get('cvg').get('data_devices') == UNCHANGED) or
+                        (params.get('cvg').get('data_devices') == '')
+                    )
+                ):
+                    raise ValueError(
+                        "List of metadata devices is specified. "
+                        "However, list of data devices is unspecified."
+                    )
+
         missing_params = []
         for param, value in params.items():
             if value == UNCHANGED and param not in self._optional_param:
@@ -218,7 +223,7 @@ class NodeParamsValidation:
 
 @attr.s(auto_attribs=True)
 class ConfigureSetup(CommandParserFillerMixin):
-    input_type: Type[inputs.NoParams] = inputs.NoParams
+    input_type: Type[NoParams] = NoParams
     _run_args_type = RunArgsConfigureSetup
 
     validate_map = {
@@ -230,18 +235,33 @@ class ConfigureSetup(CommandParserFillerMixin):
     def _parse_params(self, input):
         params = {}
         for key in input:
-            logger.debug(f"Key being processed: {key}")
-            val = key.split(".")
-            if len(val) > 1 and val[-1] in [
-                'ip', 'user', 'secret', 'type', 'interfaces',
-                'private_interfaces', 'public_interfaces',
-                'gateway', 'netmask', 'public_ip', 'private_ip'
-            ]:
-                params[f'{val[-2]}_{val[-1]}'] = input[key]
-                logger.debug(f"Params generated: {params}")
+            logger.debug(f"Key being processed: {key}::{input[key]}")
+            val = str(key).split(".")
+
+            if len(val) > 1:
+                logger.debug(f"Params with '.' separation: {params}")
+                if val[-1] in [
+                    'ip', 'user', 'secret', 'type', 'interfaces',
+                    'private_interfaces', 'public_interfaces',
+                    'gateway', 'netmask', 'public_ip', 'private_ip'
+                ]:
+                    # Node specific '.' separated params
+                    # The '.' get replaced with '_'
+                    params[f'{val[-2]}_{val[-1]}'] = input[key]
+                    logger.debug(f"Params generated with '_': {params}")
+                elif val[-3] in [
+                    'cvg'
+                ]:
+                    if not (type(params[val[-3]]) is list):
+                        params[val[-3]] = []
+                    params[val[-3]][val[-2]][val[-1]] = input[key]
+                    logger.debug(f"Params CVG list created: {params}")
             else:
-                logger.debug(f"Params generated: {params}")
                 params[val[-1]] = input[key]
+                logger.debug(f"Params with no '.' separation: \n"
+                    f"{params[val[-1]]} = {input[key]}"
+                )
+
         return params
 
     def _validate_params(self, input_type, content):
@@ -257,7 +277,7 @@ class ConfigureSetup(CommandParserFillerMixin):
             elif (
                 'interfaces' in key or
                 'roles' in key or
-                "storage.cvg" in key
+                'cvg' in key
             ):
                 # special case single value as array
                 # Need to fix this array having single value
@@ -286,21 +306,46 @@ class ConfigureSetup(CommandParserFillerMixin):
 
         config = configparser.ConfigParser()
         config.read(path)
-        logger.info("Updating salt data :")
+        logger.info("Updating salt data")
         content = {section: dict(config.items(section)) for section in config.sections()}  # noqa: E501
-        logger.debug(f"params data {content}")
+        logger.debug(f"Data from config.ini: \n{content}")
 
         input_type = None
         pillar_type = None
         node_list = []
         count = int(number_of_nodes)
 
+        # Process server_default section
+        # copy data from server_default to individual server_node sections
+        # delete server_default section
+        server_default = content["server_default"]
+        enclosure_default = content["enclosure_default"]
+        del content["server_default"]
+        del content["enclosure_default"]
+
+        for section in content.keys():
+            if 'srvnode' in section:
+                tmp_section = server_default
+                tmp_section.update(content[section])
+            elif 'enclosure' in section:
+                tmp_section = enclosure_default
+                tmp_section.update(content[section])
+            
+            content[section] = tmp_section
+            tmp_section = {}
+            logger.debug(f"Content {section}::{content[section]}")
+
+        logger.debug(f"Segregated sections: \n{content}")
+
         for section in content:
-            input_type = section
-            pillar_type = section
             if 'srvnode' in section:
                 input_type = 'node'
                 pillar_type = f'cluster/{section}'
+                count = count - 1
+                node_list.append(f"\"{section}\"")
+            elif 'enclosure' in section:
+                input_type = 'storage'
+                pillar_type = f'storage/{section}'
                 count = count - 1
                 node_list.append(f"\"{section}\"")
 
@@ -308,17 +353,14 @@ class ConfigureSetup(CommandParserFillerMixin):
             self._parse_input(content[section])
 
             for pillar_key in content[section]:
-                key = f'{pillar_type}/{self._parse_pillar_key(pillar_key)}'
-                run_subprocess_cmd([
-                       "provisioner", "pillar_set",
-                       key, f"{content[section][pillar_key]}"])
-
-        if content.get('cluster', None):
-            if content.get('cluster').get('cluster_ip', None):
-                run_subprocess_cmd([
-                       "provisioner", "pillar_set",
-                       "s3clients/ip",
-                       f"{content.get('cluster').get('cluster_ip')}"])
+                if 'storage' in pillar_key:
+                    PillarSet().run(content[section])
+                else:
+                    key = f'{pillar_type}/{self._parse_pillar_key(pillar_key)}'
+                    PillarSet().run(content[section])
+                    # run_subprocess_cmd([
+                    #         "provisioner", "pillar_set",
+                    #         key, f"{content[section][pillar_key]}"])
 
         if count > 0:
             raise ValueError(f"Node information for {count} node missing")
