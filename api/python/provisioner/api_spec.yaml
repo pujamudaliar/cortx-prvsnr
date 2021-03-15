@@ -117,6 +117,8 @@ generate_roster:
   type: GenerateRoster
 reset_machine_id:
   type: ResetMachineId
+confstor_export:
+  type: ConfstorExport 
 
 # setup commands
 setup_provisioner:
