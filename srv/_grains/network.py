@@ -15,25 +15,18 @@
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 #
 
-provisioner:
-  post_install:
-    cmd: null
-    args: null
-  config:
-    cmd: null
-    args: null
-  init:
-    cmd: null
-    args: null
-  test:
-    cmd: null
-    args: null
-  reset:
-    cmd: null
-    args: null
-  backup:
-    files:
-      - /var/lib/seagate/cortx/provisioner/shared
+import psutil
 
-support_bundle:
-  - /opt/seagate/cortx/provisioner/cli/provisioner-bundler
+
+def netmask():
+    """
+    Adds netmask of respective interface to grains data.
+
+    """
+
+    interface_details = psutil.net_if_addrs()
+    netmask = {}
+    for iface in interface_details:
+        netmask[iface] = interface_details[iface][0].netmask
+
+    return {'ip4_netmask': netmask}

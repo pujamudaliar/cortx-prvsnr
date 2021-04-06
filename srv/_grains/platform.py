@@ -15,25 +15,18 @@
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 #
 
-provisioner:
-  post_install:
-    cmd: null
-    args: null
-  config:
-    cmd: null
-    args: null
-  init:
-    cmd: null
-    args: null
-  test:
-    cmd: null
-    args: null
-  reset:
-    cmd: null
-    args: null
-  backup:
-    files:
-      - /var/lib/seagate/cortx/provisioner/shared
+from pathlib import Path
 
-support_bundle:
-  - /opt/seagate/cortx/provisioner/cli/provisioner-bundler
+FILENAME="/opt/seagate/lr-serial-number"
+
+
+def add_lr_serial_number():
+    """Populates lr-serial-number to grains."""
+
+    grains = {"lr-serial-number": None}
+
+    serial_file = Path(FILENAME)
+    if serial_file.is_file():
+        grains['lr-serial-number'] = serial_file.read_text()
+
+    return grains
